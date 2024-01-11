@@ -35,6 +35,14 @@ reset_button_color = pygame.Color('gray')
 reset_button_text = 'New Game'
 
 
+# Propriétés du bouton de changement de couleur
+SWITCH_SIDE_BUTTON_WIDTH = 120
+SWITCH_SIDE_BUTTON_HEIGHT = 40
+switch_side_button_rect = pygame.Rect(INVERSE_BOARD_BUTTON_WIDTH + SWITCH_SIDE_BUTTON_WIDTH + 20, CHESSBOARD_HEIGHT, SWITCH_SIDE_BUTTON_WIDTH, RESET_BUTTON_HEIGHT)
+switch_side_color = pygame.Color('gray')
+switch_side_text = 'Switch Side'
+
+
 
 
 
@@ -59,7 +67,6 @@ def main():
     load_images()
     reverse_board_image = pygame.transform.scale(pygame.image.load("images/reverse_board.png"), (INVERSE_BOARD_BUTTON_WIDTH, INVERSE_BOARD_BUTTON_HEIGHT))
 
-   
     flip_board = True  # false = blanc en bas, true = noir en bas
 
     dragging_piece = None  # La pièce en cours de déplacement
@@ -71,7 +78,6 @@ def main():
     while running:
 
         human_turn = board.turn == human_color
-        
 
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
@@ -92,34 +98,40 @@ def main():
                 if reset_button_rect.collidepoint(location):
                     board.reset() 
                     continue
-                
-                if flip_board:
-                    col = (CHESSBOARD_WIDTH - location[0]) // SQ_SIZE
-                    row = location[1] // SQ_SIZE
-                else:
-                    col = location[0] // SQ_SIZE
-                    row = (CHESSBOARD_HEIGHT - location[1]) // SQ_SIZE
+
+                # Changer de côté
+                if switch_side_button_rect.collidepoint(location):
+                    human_color = chess.WHITE if human_color == chess.BLACK else chess.BLACK
+                    continue
+
+                col = (CHESSBOARD_WIDTH - location[0]) // SQ_SIZE if flip_board else location[0] // SQ_SIZE
+                row = location[1] // SQ_SIZE if flip_board else (CHESSBOARD_HEIGHT - location[1]) // SQ_SIZE
 
                 piece = board.piece_at(chess.square(col, row))
                 if piece and (board.turn == piece.color):
                     dragging_piece = piece
                     dragging_start_sq = (col, row)
 
+
             elif e.type == pygame.MOUSEBUTTONUP and dragging_piece:
                 location = pygame.mouse.get_pos()
 
-                if flip_board:
-                    col = (CHESSBOARD_WIDTH - location[0]) // SQ_SIZE
-                    row = location[1] // SQ_SIZE
-                else:
-                    col = location[0] // SQ_SIZE
-                    row = (CHESSBOARD_HEIGHT - location[1]) // SQ_SIZE
+                col = (CHESSBOARD_WIDTH - location[0]) // SQ_SIZE if flip_board else location[0] // SQ_SIZE
+                row = location[1] // SQ_SIZE if flip_board else (CHESSBOARD_HEIGHT - location[1]) // SQ_SIZE
 
+                source_square = chess.square(dragging_start_sq[0], dragging_start_sq[1])
+                destination_square = chess.square(col, row)
                 source = chess.square_name(chess.square(dragging_start_sq[0], dragging_start_sq[1]))
                 destination = chess.square_name(chess.square(col, row))
 
                 if source != destination:
-                    move = chess.Move.from_uci(source + destination)
+                    move = chess.Move(source_square, destination_square)
+
+                    # Vérifier si y a promotion
+                    if board.piece_at(source_square).piece_type == chess.PAWN:
+                        if (board.turn == chess.WHITE and row == 7) or (board.turn == chess.BLACK and row == 0):
+                            move = chess.Move(source_square, destination_square, promotion=chess.QUEEN)
+
                     if move in board.legal_moves:
                         if board.is_capture(move):
                             capture_sound1.play()
@@ -137,12 +149,12 @@ def main():
 
         draw_image_button(screen, button_rect, reverse_board_image, pygame.Color('gray'))
         draw_text_button(screen, reset_button_rect, reset_button_text, reset_button_color)
+        draw_text_button(screen, switch_side_button_rect, switch_side_text, switch_side_color)
         draw_game(screen, board, flip_board, dragging_start_sq)
         
         
         if dragging_piece:
             screen.blit(IMAGES[str(dragging_piece)], pygame.Rect(mouse_x - SQ_SIZE // 2, mouse_y - SQ_SIZE // 2, SQ_SIZE, SQ_SIZE))
-        
 
         pygame.display.flip()
         clock.tick(MAX_FPS)
@@ -150,7 +162,8 @@ def main():
 
         # bot turn
         if not human_turn:
-            ai_move = minimax.select_best_move(board, 3, chess.WHITE if human_color == chess.BLACK else chess.BLACK)
+            print(f"human color : {human_color}")
+            ai_move = minimax.select_best_move(board, 2, chess.WHITE if human_color == chess.BLACK else chess.BLACK)
             if ai_move:
                 if board.is_capture(ai_move):
                     capture_sound2.play()
@@ -158,8 +171,6 @@ def main():
                     move_sound2.play()
                 board.push(ai_move)
 
-
-        
 
     pygame.quit()
     sys.exit()

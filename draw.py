@@ -17,6 +17,19 @@ def draw_board(screen):
         for c in range(DIMENSION):
             color = colors[((r + c) % 2)]
             pygame.draw.rect(screen, color, pygame.Rect(c*SQ_SIZE, r*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+"""
+def draw_pieces(screen, board, flip_board, dragging_start_sq):
+    for r in range(DIMENSION):
+        for c in range(DIMENSION):
+            if (c, r) != dragging_start_sq:
+                piece = board.piece_at(chess.square(c, r))
+                if piece:                        
+                    piece_str = str(piece).upper() if piece.color == chess.WHITE else str(piece).lower()
+                    if flip_board:
+                        screen.blit(IMAGES[piece_str], pygame.Rect((7-c)*SQ_SIZE, r*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+                    else:
+                        screen.blit(IMAGES[piece_str], pygame.Rect(c*SQ_SIZE, (7-r)*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+"""
 
 def draw_pieces(screen, board, flip_board, dragging_start_sq):
     for r in range(DIMENSION):

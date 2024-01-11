@@ -1,22 +1,33 @@
 import chess
 import random
+from evaluate_board import evaluate_board
 
 
 def select_best_move(board, depth, color):
     try:
         best_moves = []
-        best_value = -float('inf')
-        threshold = 0.5  # Seuil de proximité pour l'utilité des coups
+        threshold = 0.1  # Seuil de proximité pour l'utilité des coups
+
+        best_value = -float('inf') if color == chess.WHITE else float('inf')
+        compare = max if color == chess.WHITE else min
 
         for move in board.legal_moves:
             board.push(move)
-            board_value = minimax(board, depth - 1, -float('inf'), float('inf'), color == chess.BLACK)
+            board_value = minimax(board, depth, -float('inf'), float('inf'), color == chess.BLACK)
             board.pop()
-            if board_value > best_value:
+
+            # Mise à jour de la meilleure valeur et réinitialisation des meilleurs coups si nécessaire
+            if compare(board_value, best_value) == board_value:
+                if abs(board_value - best_value) > threshold:
+                    best_moves = [(move, board_value)]
+                else:
+                    best_moves.append((move, board_value))
                 best_value = board_value
-                best_moves = [(move, board_value)]
-            elif board_value >= best_value - threshold:
+            elif abs(board_value - best_value) <= threshold:
                 best_moves.append((move, board_value))
+
+        # Limiter à trois meilleurs coups
+        best_moves = sorted(best_moves, key=lambda x: x[1], reverse=(color == chess.WHITE))[:3]
 
         if len(best_moves) > 1:
             return random.choice(best_moves)[0]
@@ -28,54 +39,14 @@ def select_best_move(board, depth, color):
         return None
 
 
-def evaluate_board(board):
-    eval = 0
-    center_squares = [chess.D4, chess.D5, chess.E4, chess.E5]
-    king_safety_penalty = 1
-
-    if board.is_checkmate():
-        if board.turn:
-            return -9999  # Noir gagne
-        else:
-            return 9999  # Blanc gagne
-    if board.is_stalemate() or board.is_insufficient_material():
-        return 0  # Match nul
-    
-
-    # Évaluation du matériel
-    for sq in chess.SQUARES:
-        piece = board.piece_at(sq)
-        if piece:
-            value = 1 if piece.piece_type == chess.PAWN else 3 if piece.piece_type in [chess.KNIGHT, chess.BISHOP] else 5 if piece.piece_type == chess.ROOK else 9 if piece.piece_type == chess.QUEEN else 0
-            eval += value if piece.color == chess.WHITE else -value
-
-            # Bonus pour le contrôle des cases centrales
-            if sq in center_squares:
-                eval += 0.5 if piece.color == chess.WHITE else -0.5
-
-            # Bonus pour le contrôle des cases centrales
-            attacks = board.attacks(sq)
-            for center_sq in center_squares:
-                if center_sq in attacks:
-                    eval += 0.2 if piece.color == chess.WHITE else -0.2
-
-
-    # Évaluation de la sécurité du roi
-    white_king_square = board.king(chess.WHITE)
-    black_king_square = board.king(chess.BLACK)
-
-    # Pénalité si le roi n'a pas roqué ou est potentiellement en danger
-    if not board.has_castling_rights(chess.WHITE) or board.is_attacked_by(chess.BLACK, white_king_square):
-        eval -= king_safety_penalty
-    if not board.has_castling_rights(chess.BLACK) or board.is_attacked_by(chess.WHITE, black_king_square):
-        eval += king_safety_penalty
-
-    return eval
-
-
 def minimax(board, depth, alpha, beta, maximizing_player):
     if depth == 0 or board.is_game_over():
         return evaluate_board(board)
+
+    moves = list(board.legal_moves)
+    # Trier les mouvements : les captures d'abord, puis les autres mouvements
+    moves.sort(key=lambda move: (board.is_capture(move), move), reverse=True)
+
     if maximizing_player:
         max_eval = -float('inf')
         for move in board.legal_moves:
@@ -99,5 +70,4 @@ def minimax(board, depth, alpha, beta, maximizing_player):
                 break
         return min_eval
 
-# Exemple d'utilisation dans le jeu
-# move = select_best_move(board, 2)  # où 2 est la profondeur
+
